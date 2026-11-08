@@ -1,0 +1,6 @@
+# Keep generated/compared artifacts byte-identical across platforms.
+# CI runs `git diff --exit-code -- client/client.js` after a rebuild; CRLF
+# conversion on a Windows checkout would otherwise produce a false failure.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
