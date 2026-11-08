@@ -1,0 +1,18 @@
+# dsh-doubao-ui — DSH bundle patch（挂载声明）
+#
+# 这是让本包成为 PROFILE LAYER 而不是「装了却什么都不做的依赖」的关键：
+# 当执行 `dsh plugin --profile <profile> add dsh-doubao-ui` 时，DSH 会把带
+# `dsh.bundle.patch` 的依赖并入层栈，本 insert 行把插件挂到 profile 上。
+#
+# 停用 / 卸载插件后，皮肤样式由客户端的 ctx.effect 卸载函数回收，
+# 官方界面自动恢复，无需手工清理配置。
+#
+# 安装（npm）：
+#   dsh plugin --profile desktop add dsh-doubao-ui
+# 安装（GitHub）：
+#   dsh plugin --profile desktop add github:<owner>/dsh-doubao-ui
+# 安装（本地源码）：
+#   dsh plugin --profile desktop add link:<本目录绝对路径>
+- insert:
+    - id: dsh-doubao-ui
+      name: 'dsh-doubao-ui'

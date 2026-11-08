@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # 本包零依赖，不需要 npm install。构建产物随仓库提交，因此 CI 要
+      # 验证「重新构建不产生差异」——防止有人改了 src 却忘了跑 build。
+      - name: Build
+        run: node scripts/build.mjs
+
+      - name: Build output is committed
+        run: git diff --exit-code -- client/client.js
+
+      - name: Verify
+        run: node test/run-all.mjs
+
+      - name: Manifest sanity
+        run: node -e "const p=require('./package.json'); if(p.name!=='dsh-doubao-ui') throw new Error('bad name'); if(p.dsh.client.platform!=='web') throw new Error('bad platform'); console.log('manifest ok:', p.name, p.version)"

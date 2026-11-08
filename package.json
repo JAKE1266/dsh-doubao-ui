@@ -1,0 +1,84 @@
+{
+  "name": "dsh-doubao-ui",
+  "version": "1.0.0",
+  "description": "豆包风格皮肤 for DeepSeek Harness Web：官方实测色板驱动的蓝调主题、暖灰中性面、大圆角气泡与输入框、明暗双主题。纯 CSS 令牌覆盖，零运行时依赖，不碰会话数据。",
+  "type": "module",
+  "main": "lib/index.mjs",
+  "exports": {
+    ".": {
+      "default": "./lib/index.mjs"
+    },
+    "./client": {
+      "default": "./client/client.js"
+    },
+    "./tokens": {
+      "default": "./src/tokens.mjs"
+    },
+    "./package.json": "./package.json",
+    "./cordis.patch.yml": "./cordis.patch.yml"
+  },
+  "files": [
+    "lib",
+    "client",
+    "src",
+    "assets",
+    "cordis.patch.yml",
+    "LICENSE",
+    "README.md",
+    "README.en.md",
+    "CHANGELOG.md",
+    "CONTRIBUTING.md"
+  ],
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "check": "node test/run-all.mjs",
+    "prepublishOnly": "node scripts/build.mjs && node test/run-all.mjs"
+  },
+  "keywords": [
+    "deepseek",
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "dsh-plugins",
+    "doubao",
+    "豆包",
+    "theme",
+    "skin",
+    "css-variables"
+  ],
+  "author": "JAKE1266 <3051975611@qq.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JAKE1266/dsh-doubao-ui.git"
+  },
+  "homepage": "https://github.com/JAKE1266/dsh-doubao-ui#readme",
+  "bugs": {
+    "url": "https://github.com/JAKE1266/dsh-doubao-ui/issues"
+  },
+  "engines": {
+    "node": ">=20",
+    "dsh": ">=0.2.0-rc.2 <0.3.0-0"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-theme"
+      ]
+    },
+    "catalog": {
+      "category": "theme",
+      "summary": {
+        "zh": "豆包风格皮肤：蓝调主色、暖灰中性面、大圆角气泡与输入框，明暗双主题，纯 CSS 令牌覆盖。",
+        "en": "A Doubao-inspired skin for DSH Web: blue brand accent, warm neutral surfaces, rounded bubbles and composer, light/dark themes, pure CSS token overrides."
+      },
+      "capabilities": []
+    }
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}
