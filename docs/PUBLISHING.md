@@ -9,16 +9,29 @@
 | Git 仓库 | ✅ `main` 分支，工作树干净 |
 | Remote | ✅ `https://github.com/JAKE1266/dsh-doubao-ui.git` |
 | GitHub 仓库 | ✅ **已发布** <https://github.com/JAKE1266/dsh-doubao-ui>（Public） |
-| 推送 | ✅ `main` 已推送；CI 首次运行 `completed/success` |
+| 推送 | ✅ `main` 已推送；CI 运行 `completed/success` |
 | 仓库元数据 | ✅ 描述、homepage、7 个 topics（`dsh-plugin`/`deepseek-harness`/`doubao`/`theme`/`skin`/`css-variables`/`dsh`） |
 | 构建产物 | ✅ `client/client.js` 已提交，重建无差异 |
-| 验证 | ✅ `node test/run-all.mjs` **15/15** 通过 |
-| v1.1.0 升级 | ⏳ 本次改动待提交推送（组件层 + 修复 React 顶层 require 白屏隐患） |
+| 验证 | ✅ `node test/run-all.mjs` **19/19** 通过 |
+| 当前版本 | **1.1.1**（修复组件层静默失效 + 版本漂移） |
 | npm 发布 | ⛔ 尚未发布（非必需，GitHub 安装已够用） |
+
+## 0.1 版本三处一致（硬性要求）
+
+| 位置 | 说明 |
+| --- | --- |
+| `package.json` → `version` | npm / 插件市场读取 |
+| `src/tokens.mjs` → `SKIN_VERSION` | 注入 `<html data-dsh-doubao-skin>`，用于排查浏览器里挂着的旧样式 |
+| `client/client.js` | 构建产物内嵌值；必须与上面一致（否则说明忘了重建） |
+
+`test/run-all.mjs` 会同时校验这三处 + `CHANGELOG.md` 是否有对应条目。
+**这条校验是补上的** —— v1.1.1 的修复提交曾经在 `package.json` 仍是 `1.1.0`
+的情况下推送出去，版本漂移没有测试拦着。
 
 **推送方式备忘（本机）**：Windows 凭据管理器里存着 `GitHub - https://api.github.com/JAKE1266` 的 OAuth token（`gho_` 前缀，权限 `repo, user, workflow`，凭据 blob 是 **ASCII** 编码，不是 Unicode）。可以用一次性带 token 的 URL 推送，token 不写入任何文件：
 
 ```powershell
+$env:GIT_TERMINAL_PROMPT = "0"
 git push "https://JAKE1266:${env:GITHUB_TOKEN}@github.com/JAKE1266/dsh-doubao-ui.git" main
 ```
 
@@ -68,7 +81,7 @@ git push -u origin main        # 首次会弹浏览器让你登录 GitHub
 推送成功后：
 
 - 仓库地址 <https://github.com/JAKE1266/dsh-doubao-ui>
-- CI 会自动跑（`.github/workflows/ci.yml`）：重建 → 校验产物无差异 → **15 项验证**
+- CI 会自动跑（`.github/workflows/ci.yml`）：重建 → 校验产物无差异 → **19 项验证**
 - 别人即可用 `dsh plugin --profile desktop add github:JAKE1266/dsh-doubao-ui` 安装
 
 ## 3. 发布到 npm（可选，让安装命令更短）

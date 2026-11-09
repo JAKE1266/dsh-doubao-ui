@@ -176,7 +176,7 @@ data-composer-input         data-input-trigger        data-sidebar-chat
 
 **未在实时 DOM 验证的项**：各锚点的嵌套层级、`data-message-bubble` 是否同时覆盖用户与 AI 气泡。因此本皮肤**只对气泡统一圆角**，不猜测角色、不改底色与对齐 —— 猜错会伤到 AI 回答区。
 
-## 7.5 组件层（v1.1.0）的插槽依据
+## 7.5 组件层（v1.1.0 引入，v1.1.1 修复）的插槽依据
 
 全部插槽名来自本机 `app.asar` 抽取出的官方包源码（**实测**），不是猜测：
 

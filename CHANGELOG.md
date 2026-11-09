@@ -3,6 +3,48 @@
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.1.1] - 2026-11-09
+
+### Fixed
+
+- **The component layer had been silently disabled since 1.1.0.** Three real
+  bugs, all caught by new regression tests:
+
+  1. `module.exports = {...}` in `src/client.mjs` broke the `exports` alias.
+     The factory opens with `var exports = module.exports`; reassigning
+     `module.exports` makes that alias stale, so the follow-up
+     `exports.apply = (ctx) => apply(ctx, require)` wrote to a discarded object.
+     The exported `apply` stayed `apply(ctx, requireFn)`, the Loader passes only
+     `ctx`, so `requireFn` was always `undefined` and `probeComponents()`
+     always returned `null` — **the brand mark, hero mark, quick actions and
+     About page never rendered at all.** Fixed by exporting `createApply()` and
+     building `apply` inside the factory closure.
+  2. The bundler only recognised `export const/function` and silently dropped
+     names from `export { ... }` blocks, so `inject` vanished from the build
+     output. Fixed; the bundler now also **fails the build** if
+     `module.exports` is reassigned or if `createApply` / `inject` are missing.
+  3. `QuickActions` relied on `props.setDraft`, which the host never passes to
+     `conversation.hero.options` — dead code, so clicking a pill did nothing.
+     Replaced with `insertDraft()`, which finds the real composer through
+     measured anchors, writes through the native value setter and dispatches a
+     bubbling `input` event (with a three-tier fallback for environments
+     without a global `Event`).
+
+- Version drift: the 1.1.1 fix commit shipped while `package.json` and
+  `SKIN_VERSION` still said `1.1.0`. Both are now `1.1.1`, and the test suite
+  asserts they match (see Added).
+
+### Added
+
+- A version-consistency check in `test/run-all.mjs`: `package.json#version`
+  and `SKIN_VERSION` in `src/tokens.mjs` must be equal, and the committed
+  `client/client.js` must embed the same value. This is what prevents the
+  drift above from recurring.
+- Regression tests for the three bugs: `apply.length === 1`, no
+  `module.exports` reassignment in the artifact, a real `apply()` run asserting
+  both stylesheets are injected and slots registered, and `insertDraft`
+  write/dispatch/no-op paths. Suite grew 15 → 18 checks.
+
 ## [1.1.0] - 2026-11-09
 
 ### Added

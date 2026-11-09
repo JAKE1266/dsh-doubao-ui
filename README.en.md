@@ -49,7 +49,7 @@ dsh plugin --profile desktop add link:$(pwd)
 
 Replace `desktop` with the profile actually running `dsh web` (check with `dsh --profile desktop --dump-config`).
 
-**Activate:** restart DSH Web, then hard-refresh the browser (`Ctrl+Shift+R`). In DevTools, `<html>` should carry `data-dsh-doubao-skin="1.1.0"` and `<head>` should contain both `<style data-plugin="dsh-doubao-ui" data-plugin-css="dsh-doubao-ui/skin.css">` and `.../components.css"`.
+**Activate:** restart DSH Web, then hard-refresh the browser (`Ctrl+Shift+R`). In DevTools, `<html>` should carry `data-dsh-doubao-skin="1.1.1"` and `<head>` should contain both `<style data-plugin="dsh-doubao-ui" data-plugin-css="dsh-doubao-ui/skin.css">` and `.../components.css"`.
 
 ## What's new in 1.1.0
 

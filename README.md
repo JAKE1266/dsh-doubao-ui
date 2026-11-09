@@ -92,7 +92,7 @@ dsh plugin --profile desktop add link:<本目录绝对路径>
 
 1. **重启 DSH Web**（新增 profile bundle 需要重启加载器）。
 2. 在浏览器里硬刷新（`Ctrl+Shift+R` / `Cmd+Shift+R`）。
-3. 打开 DevTools，若 `<html>` 上出现 `data-dsh-doubao-skin="1.1.0"`，且 `<head>` 里有 `<style data-plugin="dsh-doubao-ui" data-plugin-css="dsh-doubao-ui/skin.css">` 与 `.../components.css"`，即表示两层都已激活。
+3. 打开 DevTools，若 `<html>` 上出现 `data-dsh-doubao-skin="1.1.1"`，且 `<head>` 里有 `<style data-plugin="dsh-doubao-ui" data-plugin-css="dsh-doubao-ui/skin.css">` 与 `.../components.css"`，即表示两层都已激活。
 
 ### 停用 / 卸载
 
@@ -146,7 +146,7 @@ node test/run-all.mjs
 node test/run-all.mjs
 ```
 
-零依赖的自包含套件，**15 项检查**，覆盖：产物语法与工厂注册契约、4 个模块内联、CSS 双主题块与结构令牌、亮/暗键集合一致性（208 个令牌）、样式注入幂等与卸载回收、`apply` 在任何宿主异常下都不抛错、组件层插槽声明与 React 缺失降级、组件样式回收、manifest 自洽。CI 在 push / PR 上跑同一套。
+零依赖的自包含套件，**19 项检查**，覆盖：产物语法与工厂注册契约、4 个模块内联、CSS 双主题块与结构令牌、亮/暗键集合一致性（208 个令牌）、样式注入幂等与卸载回收、`apply` 在任何宿主异常下都不抛错、组件层插槽声明与 React 缺失降级、组件样式回收、manifest 自洽。CI 在 push / PR 上跑同一套。
 
 ---
 

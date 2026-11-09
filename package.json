@@ -1,6 +1,6 @@
 {
   "name": "dsh-doubao-ui",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "豆包风格皮肤 for DeepSeek Harness Web：官方实测色板驱动的蓝调主题、大圆角几何、明暗双主题，外加品牌图标、首页快捷入口与关于页。纯 CSS 令牌覆盖 + 声明式插槽，零运行时依赖，不碰会话数据。",
   "type": "module",
   "main": "lib/index.mjs",
@@ -23,6 +23,8 @@
     "src",
     "assets",
     "cordis.patch.yml",
+    "scripts",
+    "docs",
     "LICENSE",
     "README.md",
     "README.en.md",

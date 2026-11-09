@@ -241,7 +241,7 @@ function makeDomStub() {
     assert.equal(head.children.length, 1, '第一次安装应插入一个 style')
     assert.equal(head.children[0].dataset.plugin, 'dsh-doubao-ui')
     assert.equal(head.children[0].dataset.pluginCss, 'dsh-doubao-ui/skin.css')
-    assert.equal(rootAttrs.get('data-dsh-doubao-skin'), '1.1.0')
+    assert.match(rootAttrs.get('data-dsh-doubao-skin'), /^\d+\.\d+\.\d+$/, '激活标记必须带版本号')
     const first = head.children[0]
     const dispose2 = mod.installSkin(doc)
     assert.equal(head.children.length, 1, '重复安装不得重复插入 style')
@@ -431,7 +431,24 @@ function makeDomStub() {
     ]) {
       assert.ok(pkg.dsh.client.inject.includes(name), `dsh.client.inject 必须前置声明 ${name}`)
     }
-    assert.equal(pkg.version, '1.1.0', '版本号应与本次升级一致')
+    // 版本一致性：package.json / SKIN_VERSION / 产物内嵌值三者必须相同。
+    // 这防止「改了代码但忘了升版本」或「只升了一处」的漂移。
+    const tokensSrc = read('src/tokens.mjs')
+    const skinVersion = /export const SKIN_VERSION = '([^']+)'/.exec(tokensSrc)?.[1]
+    assert.ok(skinVersion, 'src/tokens.mjs 必须导出 SKIN_VERSION')
+    assert.match(pkg.version, /^\d+\.\d+\.\d+$/, 'package.json 版本号必须是语义化版本')
+    assert.equal(skinVersion, pkg.version, 'SKIN_VERSION 必须与 package.json 版本一致')
+    assert.ok(
+      clientCode.includes(`const SKIN_VERSION = '${pkg.version}'`),
+      `产物内嵌的 SKIN_VERSION 必须等于 ${pkg.version}（请重新构建）`,
+    )
+    // CHANGELOG 必须记录当前版本，避免「发了版但没写变更」。
+    const changelog = read('CHANGELOG.md')
+    assert.ok(
+      changelog.includes(`## [${pkg.version}]`),
+      `CHANGELOG.md 必须包含 "## [${pkg.version}]" 条目`,
+    )
+    ok(`版本一致（package.json = SKIN_VERSION = 产物 = ${pkg.version}，且 CHANGELOG 有条目）`)
     assert.equal(pkg.dsh.bundle.patch, './cordis.patch.yml')
     assert.ok(existsSync(join(root, pkg.exports['.'].default)), 'exports["."] 指向的文件不存在')
     assert.ok(existsSync(join(root, pkg.exports['./client'].default)), 'exports["./client"] 指向的文件不存在')
