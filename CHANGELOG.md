@@ -3,6 +3,38 @@
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.2.0] - 2026-11-09
+
+### Added
+
+- **Scrollbar styling**: thin (9px), rounded, translucent thumbs that follow the
+  theme tokens instead of the OS default. Same treatment as the sibling
+  `dsh-kimi-ui`.
+- **Brand-tinted selection**: `::selection` uses the Doubao brand blue instead of
+  the system default.
+- **Brand-accented blockquotes**: a 3px `--db-primary` left border plus a
+  brand-tinted background, replacing the plain border.
+- **Send-button interaction**: brand glow shadow and a 1px lift on hover, so the
+  primary action reads as interactive rather than flat.
+- **Floating-layer polish**: menus and context menus get a consistent border and
+  the `--dsw-shadow-lv2` elevation.
+- `scripts/preview.mjs`: renders the real skin CSS against a simulated DSH
+  layout via headless Edge and writes `assets/preview-{light,dark}.png`. The
+  script header states explicitly that this is a mock, not a screenshot of DSH,
+  and cannot reflect the host's real DOM density or spacing.
+
+### Fixed
+
+- The hover rule for the composer send button was previously absent, so the
+  primary action had no visible feedback at all.
+
+### Notes
+
+- Colors remain the **measured** Doubao tokens (`#0057FF` S-layer brand,
+  cool-grey neutrals). Unlike `dsh-kimi-ui` 2.x, this release does **not**
+  amplify radii or saturation — Doubao's own palette is already high-contrast
+  blue-on-grey, and the measured values carry the identity on their own.
+
 ## [1.1.1] - 2026-11-09
 
 ### Fixed

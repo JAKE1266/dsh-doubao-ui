@@ -258,7 +258,7 @@ function AboutSection() {
         jsx('img', { src: markDataUrl(), alt: '', 'aria-hidden': 'true' }),
         jsxs('div', { children: [
           jsx('h2', { children: '豆包风格皮肤' }),
-          jsx('span', { className: 'db-about-badge', children: 'dsh-doubao-ui · v1.1.0' }),
+          jsx('span', { className: 'db-about-badge', children: 'dsh-doubao-ui · v1.2.0' }),
         ] }),
       ] }),
       jsxs('div', { className: 'db-about-card', children: [

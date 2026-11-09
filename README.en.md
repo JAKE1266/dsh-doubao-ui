@@ -2,6 +2,13 @@
 
 **A Doubao-inspired skin for the [DeepSeek Harness](https://www.deepseek.com/harness/) Web client.**
 
+![Light preview](assets/preview-light.png)
+![Dark preview](assets/preview-dark.png)
+
+> These are **mockups** rendered by `node scripts/preview.mjs`, not screenshots of
+> DSH. The layout is hand-written and does not reflect the host's real DOM density
+> or spacing; check the live app for the true result.
+
 > [!IMPORTANT]
 > This is an **unofficial, community-maintained plugin**. It is not a product of ByteDance / Doubao, nor of DeepSeek AI, and has no authorization or endorsement from either. Trademarks belong to their respective owners and are used only to describe the visual inspiration and compatibility.
 >

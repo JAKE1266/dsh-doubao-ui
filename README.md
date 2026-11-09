@@ -2,6 +2,12 @@
 
 **给 [DeepSeek Harness](https://www.deepseek.com/harness/) Web 换一套豆包风格皮肤。**
 
+![浅色预览](assets/preview-light.png)
+![深色预览](assets/preview-dark.png)
+
+> 上图为 **示意图**（由 `node scripts/preview.mjs` 渲染），用于展示配色、圆角与层次，
+> **不是 DSH 真实截图** —— 布局是手写的近似，真实效果请启用插件后查看。
+
 > 皮肤为纯 CSS 令牌覆盖 + 声明式插槽注入，仓库内不含任何图片素材。安装启用后欢迎按 [`assets/README.md`](assets/README.md) 的说明补一张亮/暗对比截图。
 
 > [!IMPORTANT]

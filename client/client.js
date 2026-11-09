@@ -47,7 +47,7 @@ window.__ModuleLoader__.load({
 		 */
 
 		/** 皮肤版本：改动令牌口径时递增，便于排查浏览器里挂着的旧样式。 */
-		const SKIN_VERSION = '1.1.1'
+		const SKIN_VERSION = '1.2.0'
 
 		/** 标记属性，注入到 <html> 上，便于在 DevTools 里确认皮肤已激活。 */
 		const SKIN_ATTRIBUTE = 'data-dsh-doubao-skin'
@@ -671,16 +671,56 @@ window.__ModuleLoader__.load({
 		  color:#fff!important;
 		  border:0!important;
 		  border-radius:var(--dsw-radius-sm)!important;
+		  box-shadow:0 3px 12px var(--db-primary-soft)!important;
+		  transition:transform var(--db-dur) var(--db-ease-out),box-shadow var(--db-dur) var(--db-ease-out)!important;
+		}
+		[data-composer-card] button[class*="primary"]:hover,
+		[data-composer-card] [data-composer-command]:hover{
+		  transform:translateY(-1px)!important;
+		  box-shadow:0 5px 18px var(--db-primary-border)!important;
 		}
 
-		/* 代码块与引用块：统一大圆角、禁止横向溢出。 */
+		/* 代码块与引用块：统一大圆角；引用块用品牌色左边框（豆包蓝的辨识点）。 */
 		[data-code-block-banner]{border-radius:var(--dsw-radius-lg) var(--dsw-radius-lg) 0 0!important}
 		[data-conversation-scroll] pre,
 		[data-conversation-scroll] blockquote{border-radius:var(--dsw-radius-lg)!important}
+		[data-conversation-scroll] blockquote{
+		  border-left:3px solid var(--db-primary)!important;
+		  background:var(--db-primary-soft)!important;
+		  padding-left:16px!important;
+		}
+
+		/* 滚动条：细、圆、半透明（跟随主题令牌）。 */
+		:root:root ::-webkit-scrollbar{width:var(--dsh-scrollbar-width);height:var(--dsh-scrollbar-width)}
+		:root:root ::-webkit-scrollbar-thumb{
+		  background:var(--dsw-alias-scrollbar-bg-l1);
+		  border-radius:9999px;
+		  border:var(--dsh-scrollbar-thumb-border) solid transparent;
+		  background-clip:padding-box;
+		}
+		:root:root ::-webkit-scrollbar-thumb:hover{
+		  background:var(--dsw-alias-scrollbar-hover-l1);
+		  background-clip:padding-box;
+		}
+		:root:root ::-webkit-scrollbar-track{background:transparent}
+
+		/* 焦点环与选中文本：品牌色。 */
+		:root:root body :focus-visible{outline-color:var(--dsw-focus-ring-color)}
+		:root:root body ::selection{
+		  background:var(--db-primary-soft);
+		  color:var(--dsw-alias-label-primary);
+		}
+
+		/* 浮层：菜单与上下文菜单用品牌描边 + 中等阴影。 */
+		[data-menu-field],[data-context-menu]{
+		  border:1px solid var(--dsw-alias-border-l2)!important;
+		  box-shadow:var(--dsw-shadow-lv2)!important;
+		}
 
 		/* 尊重系统的减少动效偏好。 */
 		@media (prefers-reduced-motion: reduce){
-		  [data-composer-card],[data-composer-chip]{transition:none!important}
+		  [data-composer-card],[data-composer-chip],
+		  [data-composer-card] button[class*="primary"]{transition:none!important;transform:none!important}
 		}
 		`.trim()
 
@@ -1012,7 +1052,7 @@ window.__ModuleLoader__.load({
 		        jsx('img', { src: markDataUrl(), alt: '', 'aria-hidden': 'true' }),
 		        jsxs('div', { children: [
 		          jsx('h2', { children: '豆包风格皮肤' }),
-		          jsx('span', { className: 'db-about-badge', children: 'dsh-doubao-ui · v1.1.0' }),
+		          jsx('span', { className: 'db-about-badge', children: 'dsh-doubao-ui · v1.2.0' }),
 		        ] }),
 		      ] }),
 		      jsxs('div', { className: 'db-about-card', children: [
