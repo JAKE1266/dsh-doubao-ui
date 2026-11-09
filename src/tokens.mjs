@@ -35,7 +35,7 @@
  */
 
 /** 皮肤版本：改动令牌口径时递增，便于排查浏览器里挂着的旧样式。 */
-export const SKIN_VERSION = '1.0.0'
+export const SKIN_VERSION = '1.1.0'
 
 /** 标记属性，注入到 <html> 上，便于在 DevTools 里确认皮肤已激活。 */
 export const SKIN_ATTRIBUTE = 'data-dsh-doubao-skin'

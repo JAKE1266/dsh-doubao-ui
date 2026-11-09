@@ -2,23 +2,31 @@
 
 > 本文件记录「从本地仓库到公开可用」的完整步骤。当前状态见文末「当前进度」。
 
-## 0. 当前进度（2026-11-08）
+## 0. 当前进度（2026-11-09 更新）
 
 | 项 | 状态 |
 | --- | --- |
-| Git 仓库 | ✅ 已初始化，`main` 分支，2 个提交，工作树干净 |
-| Remote | ✅ 已配置 `https://github.com/JAKE1266/dsh-doubao-ui.git` |
+| Git 仓库 | ✅ `main` 分支，工作树干净 |
+| Remote | ✅ `https://github.com/JAKE1266/dsh-doubao-ui.git` |
+| GitHub 仓库 | ✅ **已发布** <https://github.com/JAKE1266/dsh-doubao-ui>（Public） |
+| 推送 | ✅ `main` 已推送；CI 首次运行 `completed/success` |
+| 仓库元数据 | ✅ 描述、homepage、7 个 topics（`dsh-plugin`/`deepseek-harness`/`doubao`/`theme`/`skin`/`css-variables`/`dsh`） |
 | 构建产物 | ✅ `client/client.js` 已提交，重建无差异 |
-| 验证 | ✅ `node test/run-all.mjs` 10/10 通过 |
-| CI 配置 | ✅ `.github/workflows/ci.yml` 已提交 |
-| GitHub 仓库 | ⛔ **尚未创建**（API 返回 404） |
-| 推送凭据 | ⛔ **本机没有**（无 `GITHUB_TOKEN`/`GH_TOKEN`、无 credential helper、未装 `gh` CLI） |
+| 验证 | ✅ `node test/run-all.mjs` **15/15** 通过 |
+| v1.1.0 升级 | ⏳ 本次改动待提交推送（组件层 + 修复 React 顶层 require 白屏隐患） |
+| npm 发布 | ⛔ 尚未发布（非必需，GitHub 安装已够用） |
 
-**结论**：代码已 100% 就绪，只差「创建远端仓库 + 认证推送」这一步，需要你本人完成或授权。
+**推送方式备忘（本机）**：Windows 凭据管理器里存着 `GitHub - https://api.github.com/JAKE1266` 的 OAuth token（`gho_` 前缀，权限 `repo, user, workflow`，凭据 blob 是 **ASCII** 编码，不是 Unicode）。可以用一次性带 token 的 URL 推送，token 不写入任何文件：
+
+```powershell
+git push "https://JAKE1266:${env:GITHUB_TOKEN}@github.com/JAKE1266/dsh-doubao-ui.git" main
+```
 
 ---
 
-## 1. 创建 GitHub 仓库（二选一）
+## 1. 创建 GitHub 仓库（已完成，此节留作重建/迁移参考）
+
+> 仓库已于 2026-11-09 创建并发布。若需要迁移到另一个账号或重建，按下面二选一。
 
 ### A. 网页（最简单）
 
@@ -60,7 +68,7 @@ git push -u origin main        # 首次会弹浏览器让你登录 GitHub
 推送成功后：
 
 - 仓库地址 <https://github.com/JAKE1266/dsh-doubao-ui>
-- CI 会自动跑（`.github/workflows/ci.yml`）：重建 → 校验产物无差异 → 10 项验证
+- CI 会自动跑（`.github/workflows/ci.yml`）：重建 → 校验产物无差异 → **15 项验证**
 - 别人即可用 `dsh plugin --profile desktop add github:JAKE1266/dsh-doubao-ui` 安装
 
 ## 3. 发布到 npm（可选，让安装命令更短）

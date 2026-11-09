@@ -1,7 +1,7 @@
 {
   "name": "dsh-doubao-ui",
-  "version": "1.0.0",
-  "description": "豆包风格皮肤 for DeepSeek Harness Web：官方实测色板驱动的蓝调主题、暖灰中性面、大圆角气泡与输入框、明暗双主题。纯 CSS 令牌覆盖，零运行时依赖，不碰会话数据。",
+  "version": "1.1.0",
+  "description": "豆包风格皮肤 for DeepSeek Harness Web：官方实测色板驱动的蓝调主题、大圆角几何、明暗双主题，外加品牌图标、首页快捷入口与关于页。纯 CSS 令牌覆盖 + 声明式插槽，零运行时依赖，不碰会话数据。",
   "type": "module",
   "main": "lib/index.mjs",
   "exports": {
@@ -67,14 +67,18 @@
     "client": {
       "platform": "web",
       "inject": [
-        "@deepseek-ai/dsh-client-ui-theme"
+        "@deepseek-ai/dsh-client-ui-theme",
+        "@deepseek-ai/dsh-client-ui-sidebar",
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-ui-brand-official"
       ]
     },
     "catalog": {
       "category": "theme",
       "summary": {
-        "zh": "豆包风格皮肤：蓝调主色、暖灰中性面、大圆角气泡与输入框，明暗双主题，纯 CSS 令牌覆盖。",
-        "en": "A Doubao-inspired skin for DSH Web: blue brand accent, warm neutral surfaces, rounded bubbles and composer, light/dark themes, pure CSS token overrides."
+        "zh": "豆包风格皮肤：蓝调主色、大圆角几何、明暗双主题，外加品牌图标、首页快捷入口与关于页。",
+        "en": "A Doubao-inspired skin for DSH Web: blue brand accent, rounded geometry, light/dark themes, plus brand marks, hero quick actions and an About page."
       },
       "capabilities": []
     }

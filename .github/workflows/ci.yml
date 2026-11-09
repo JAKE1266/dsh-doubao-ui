@@ -24,6 +24,9 @@ jobs:
       - name: Build output is committed
         run: git diff --exit-code -- client/client.js
 
+      # 15 项检查：产物语法/工厂契约、4 模块内联、双主题 CSS、
+      # 亮暗键集合一致性、样式幂等与回收、apply 容错、组件层插槽与
+      # React 缺失降级、组件样式回收、manifest 自洽。
       - name: Verify
         run: node test/run-all.mjs
 

@@ -49,7 +49,25 @@ dsh plugin --profile desktop add link:$(pwd)
 
 Replace `desktop` with the profile actually running `dsh web` (check with `dsh --profile desktop --dump-config`).
 
-**Activate:** restart DSH Web, then hard-refresh the browser (`Ctrl+Shift+R`). In DevTools, `<html>` should carry `data-dsh-doubao-skin="1.0.0"` and `<head>` should contain `<style data-plugin="dsh-doubao-ui" data-plugin-css="dsh-doubao-ui/skin.css">`.
+**Activate:** restart DSH Web, then hard-refresh the browser (`Ctrl+Shift+R`). In DevTools, `<html>` should carry `data-dsh-doubao-skin="1.1.0"` and `<head>` should contain both `<style data-plugin="dsh-doubao-ui" data-plugin-css="dsh-doubao-ui/skin.css">` and `.../components.css"`.
+
+## What's new in 1.1.0
+
+A second **component layer** on top of the CSS skin, registered declaratively
+via official `ctx.slots`:
+
+- `sidebar.brand.mark` / `sidebar.brand.name` — an original conversation-bubble
+  mark (inline SVG, no copied assets) + the name, shadowing the official brand
+  occupant with `priority:-1`.
+- `conversation.hero.brand.mark` — large mark on the new-conversation page.
+- `conversation.hero.options` — four quick-action pills using the measured
+  on-site copy: `AI 搜索 / 帮我写作 / 图像生成 / 翻译` (notably **not** "深度思考").
+- `settings.section` — an About page covering capabilities, provenance and rollback.
+
+Safety: the component layer never calls `require('react')` at module top level.
+React is bound lazily; if the host seed modules are missing, the whole component
+layer degrades to an inert no-op and the CSS skin still works. This is verified
+by the test suite because the DSH loader does not isolate entry factories.
 
 **Disable / remove:**
 

@@ -3,6 +3,53 @@
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.1.0] - 2026-11-09
+
+### Added
+
+- A second **component layer** on top of the CSS skin, registered through
+  official `ctx.slots.inject` / `ctx.slots.register`:
+  - `sidebar.brand.mark` / `sidebar.brand.name`: an original inline-SVG
+    conversation-bubble mark + the "豆包" name, shadowing the official brand
+    occupant with `priority:-1`.
+  - `conversation.hero.brand.mark`: large mark on the new-conversation page.
+  - `conversation.hero.options`: four quick-action pills using the copy measured
+    from the official HTML — `AI 搜索 / 帮我写作 / 图像生成 / 翻译`.
+    ("深度思考" does not appear on the current site and was deliberately not used.)
+  - `settings.section`: an About page documenting capabilities, provenance and
+    rollback.
+- `src/artwork.mjs`: original inline SVG asset. **No asset is copied from the
+  Doubao client** — the mark is a self-drawn conversation bubble that only
+  borrows the blue + rounded visual language.
+- Multi-module bundler: `scripts/build.mjs` now inlines four source modules
+  (`tokens` / `artwork` / `components` / `client`) into the single committed
+  `client/client.js`, passing host seed modules (`react`, `react/jsx-runtime`)
+  through to the factory's `require`.
+- Component-layer CSS (`.db-*` namespace) with idempotent injection and
+  `ctx.effect` teardown, matching the skin layer convention.
+- `dsh.client.inject` now preloads the official `ui-sidebar`, `ui-conversation`,
+  `ui-settings` and `ui-brand-official` packages so slot declarations are always
+  in place before this plugin activates.
+- Verification suite grew from 10 to **15 checks**, including slot declarations,
+  `priority:-1`, quick-action copy, component-style teardown and React-missing
+  degradation.
+
+### Fixed
+
+- **Potential white-screen bug caught by the new tests:** the component module
+  originally called `require('react')` at top level. Because the loader does not
+  isolate entry factories, a missing React seed would throw outside the
+  `probeComponents` try/catch and take down the whole Web shell. React is now
+  bound lazily via `bindReact(requireFn)` at activation time; failure degrades
+  the entire component layer to an inert no-op while the CSS skin stays intact.
+
+### Changed
+
+- `exports.inject` (client service injection) now declares `['slots']`.
+- `SKIN_VERSION` bumped to `1.1.0` (observable on `<html data-dsh-doubao-skin>`).
+- README rewritten around the two-layer architecture; added an English
+  "What's new" section and expanded the conflict FAQ.
+
 ## [1.0.0] - 2026-11-08
 
 ### Added

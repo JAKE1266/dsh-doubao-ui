@@ -176,6 +176,26 @@ data-composer-input         data-input-trigger        data-sidebar-chat
 
 **未在实时 DOM 验证的项**：各锚点的嵌套层级、`data-message-bubble` 是否同时覆盖用户与 AI 气泡。因此本皮肤**只对气泡统一圆角**，不猜测角色、不改底色与对齐 —— 猜错会伤到 AI 回答区。
 
+## 7.5 组件层（v1.1.0）的插槽依据
+
+全部插槽名来自本机 `app.asar` 抽取出的官方包源码（**实测**），不是猜测：
+
+| 插槽 | 来源 | 证据 |
+| --- | --- | --- |
+| `sidebar.brand.mark` / `sidebar.brand.name` | `@deepseek-ai/dsh-client-ui-sidebar/lib/client.js:737-744` | `children` 声明 `kind:"single", scope:"root"`；渲染处 `:394/:438/:446` 调 `renderSlot("sidebar.brand.mark", {size:24}, {fallback: FishLogo})` |
+| `sidebar.brand.*` 的覆盖方式 | `@deepseek-ai/dsh-client-ui-brand-official/lib/client.js:35-40` | 官方用 `slots.inject("sidebar.brand.mark", () => slots.inject("sidebar.brand.name", function*(){ yield slots.register(...); yield slots.register(...); }))` |
+| `conversation.hero.brand.mark` | `@deepseek-ai/dsh-client-ui-conversation/lib/client.js:20450` | `renderSlot("conversation.hero.brand.mark", {size:34, className}, {fallback: HeroFish})` |
+| `conversation.hero.options` | 同上 `:20552` / `:22820-22832` | `children` 声明里含 `conversation.hero.options` |
+| `settings.section` | `@deepseek-ai/dsh-client-ui-theme/lib/client.js:2336` 同族 `settings.general.item`；社区 `dsh-voice-memory` / `dsh-zcode-ui` 均用 `settings.section` | `slots.register({name, id, order, label, inject}, Component)` |
+
+`priority:-1` 是 [zdz6215591/dsh-theme-doubao](https://github.com/zdz6215591/dsh-theme-doubao) 已验证的写法：单个插槽渲染最低优先级的 entry，官方 `dsh-client-ui-brand-official` 默认优先级 0，因此 -1 可以盖掉它。
+
+**快捷入口文案依据**：服务端 HTML 实测计数 `AI 搜索`×2、`帮我写作`×3、`图像生成`×3、`翻译`×5，而 `深度思考` = **0 次**、`联网搜索` = 0 次。因此胶囊用前四个，且测试套件强制断言不含「深度思考」。
+
+**图标合规**：`src/artwork.mjs` 的 `MARK_SVG` 是本项目原创绘制的「交叠对话气泡 + 三个点」，只借用「蓝 + 圆润」的视觉语言（几何与配色不受版权保护），**不是**豆包 logo 的临摹，也没有从豆包客户端复制任何图片/图标/字体。
+
+**React 惰性绑定**：组件模块顶层**不**调用 `require('react')`。工厂一进入就会求值所有内联模块体；若此时 React 种子缺失，异常会发生在 `probeComponents` 的 try 之外，直接带崩 Web 壳。因此改用 `bindReact(requireFn)` 在激活时绑定，失败则整个组件层降级为空操作。这一条由 `test/run-all.mjs` 的「React 缺失」用例守门。
+
 ## 8. 合规与声明
 
 - 本皮肤是 **inspired-by 再设计**，不是官方设计资产的逐像素复刻。

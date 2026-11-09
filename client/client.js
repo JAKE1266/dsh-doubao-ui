@@ -1,5 +1,5 @@
 /* dsh-doubao-ui — 自动生成，请勿直接编辑。
- * 源码：src/tokens.mjs + src/client.mjs
+ * 源码：src/tokens.mjs + src/artwork.mjs + src/components.mjs + src/client.mjs
  * 生成：node scripts/build.mjs
  */
 window.__ModuleLoader__.load({
@@ -9,7 +9,7 @@ window.__ModuleLoader__.load({
 		var exports = module.exports;
 		Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 
-		const __TOKENS__ = (() => {
+		const __MOD_TOKENS__ = (() => {
 		/**
 		 * dsh-doubao-ui — 豆包风格主题令牌
 		 *
@@ -47,7 +47,7 @@ window.__ModuleLoader__.load({
 		 */
 
 		/** 皮肤版本：改动令牌口径时递增，便于排查浏览器里挂着的旧样式。 */
-		const SKIN_VERSION = '1.0.0'
+		const SKIN_VERSION = '1.1.0'
 
 		/** 标记属性，注入到 <html> 上，便于在 DevTools 里确认皮肤已激活。 */
 		const SKIN_ATTRIBUTE = 'data-dsh-doubao-skin'
@@ -710,44 +710,372 @@ window.__ModuleLoader__.load({
 		return { SKIN_VERSION, SKIN_ATTRIBUTE, STYLE_TAG_ID, LIGHT_SELECTOR, DARK_SELECTOR, STRUCTURAL, LIGHT, DARK, STRUCTURE_CSS, renderTokenBlock, renderSkinCss };
 		})();
 
+		const __MOD_ARTWORK__ = (() => {
+		/**
+		 * 原创图形资产 —— 纯内联 SVG 字符串，不含任何来自豆包客户端的图片。
+		 *
+		 * 合规说明：本插件不复制豆包图标、人物或任何受版权保护的素材。这里画的是
+		 * 一个**自创的「对话气泡」标记**，只借用「蓝 + 圆润」的视觉语言（几何与配色
+		 * 本身不受版权保护）。它故意不是豆包 logo 的临摹。
+		 *
+		 * 形状语言：两个交叠的圆角气泡 + 一个渐变高光，对应「对话」这一产品语义；
+		 * 蓝取自实测主色 #0057ff → #0066ff。
+		 */
+
+		/** 侧栏 / hero 共用的方形标记（viewBox 0 0 48 48）。 */
+		const MARK_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" role="img" aria-label="">
+		  <defs>
+		    <linearGradient id="db-g" x1="0" y1="0" x2="1" y2="1">
+		      <stop offset="0" stop-color="#75A4FF"/>
+		      <stop offset="0.45" stop-color="#0057FF"/>
+		      <stop offset="1" stop-color="#0066FF"/>
+		    </linearGradient>
+		  </defs>
+		  <rect x="2" y="2" width="44" height="44" rx="14" fill="url(#db-g)"/>
+		  <path d="M12 18.5c0-3 2.5-5.5 5.5-5.5h13c3 0 5.5 2.5 5.5 5.5v8c0 3-2.5 5.5-5.5 5.5H22l-6.5 5v-5h-.5c-3 0-5.5-2.5-5.5-5.5z" fill="#fff" fill-opacity=".96"/>
+		  <circle cx="20" cy="22" r="2.1" fill="#0057FF"/>
+		  <circle cx="26" cy="22" r="2.1" fill="#0057FF"/>
+		  <circle cx="32" cy="22" r="2.1" fill="#0057FF"/>
+		</svg>`
+
+		/** 作为 `<img src>` 使用的 data URL（UTF-8 → base64，构建期在浏览器侧用 btoa 生成）。 */
+		function markDataUrl() {
+		  // 浏览器环境：btoa 只吃 Latin-1，SVG 全为 ASCII，可直接编码。
+		  try {
+		    return 'data:image/svg+xml;base64,' + btoa(MARK_SVG)
+		  } catch {
+		    return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(MARK_SVG)
+		  }
+		}
+
+		return { MARK_SVG, markDataUrl };
+		})();
+
+		const __MOD_COMPONENTS__ = (() => {
+		/**
+		 * dsh-doubao-ui — React 组件层（源码）
+		 *
+		 * 这一层让皮肤从「只换颜色」升级为「真的像豆包」：
+		 *   1. sidebar.brand.mark / sidebar.brand.name  → 自创对话气泡标记 + 名称
+		 *   2. conversation.hero.brand.mark             → 首页大号标记
+		 *   3. conversation.hero.options                → 快捷入口胶囊（AI 搜索 / 帮我写作 …）
+		 *   4. settings.section                          → 「关于」页，说明来源与权限边界
+		 *
+		 * 全部通过官方 `ctx.slots.inject` / `ctx.slots.register` 声明式注册，
+		 * 不直接改宿主 DOM（除了 CSS  Marker）、不碰会话数据、不注册工具、不联网。
+		 *
+		 * ── 安全纪律（与皮肤层一致，且这里更关键）──────────────────────────────
+		 * DSH 客户端 Loader **不隔离 entry 工厂**：一个工厂抛异常会聚合成
+		 * "entries did not activate"，把整个 Web 壳带崩。所以：
+		 *   - react / react/jsx-runtime 全部用 try 包裹的探针获取，拿不到就整体降级
+		 *     成「只注入 CSS、不注册任何组件」的哑模块；
+		 *   - 每个 slots.inject 都单独 try/catch，某个插槽不存在/已声明不影响其余；
+		 *   - 组件内部不访问可能为空的 ctx 服务，全部用可选链 + 默认值。
+		 *
+		 * 关于 priority：-1 是社区 dsh-theme-doubao 已验证的写法，用来盖掉
+		 * 官方 dsh-client-ui-brand-official（默认优先级 0）的占位。
+		 */
+
+		/**
+		 * ⚠️ 关键：模块顶层**绝不**调用 require('react')。
+		 *
+		 * 工厂一进入就会求值所有内联模块体；若此时 React 种子模块缺失，抛出的异常
+		 * 发生在 `probeComponents` 的 try 之外，会直接把整个 Web 壳带崩（loader 不
+		 * 隔离工厂）。因此 React 一律通过下面的惰性 getter 在**组件真正渲染时**才取，
+		 * 拿不到就返回 null 让调用方降级。
+		 */
+		let __React = null
+		let __jsx = null
+		let __jsxs = null
+
+		/** 惰性绑定 React 种子模块；成功返回 true，失败返回 false（绝不抛）。 */
+		function bindReact(requireFn) {
+		  try {
+		    const React = requireFn('react')
+		    const runtime = requireFn('react/jsx-runtime')
+		    if (!React || !runtime || typeof runtime.jsx !== 'function') return false
+		    __React = React
+		    __jsx = runtime.jsx
+		    __jsxs = runtime.jsxs ?? runtime.jsx
+		    return true
+		  } catch {
+		    return false
+		  }
+		}
+
+		/** 渲染助手：未绑定时返回一个空节点，不抛异常。 */
+		const jsx = (...args) => (__jsx ? __jsx(...args) : null)
+		const jsxs = (...args) => (__jsxs ? __jsxs(...args) : null)
+
+		const { markDataUrl } = __MOD_ARTWORK__
+
+		const PLUGIN_ID = 'dsh-doubao-ui'
+		const NS = 'settings.doubaoUi'
+
+		/** 官方 HTML 实测文案（「深度思考」0 次、「AI 搜索」2 次）。 */
+		const QUICK_ACTIONS = [
+		  { id: 'search', label: 'AI 搜索', prompt: '帮我搜索并总结：' },
+		  { id: 'write', label: '帮我写作', prompt: '帮我写一段：' },
+		  { id: 'image', label: '图像生成', prompt: '帮我生成一张图片，描述是：' },
+		  { id: 'translate', label: '翻译', prompt: '请把下面内容翻译成中文：\n' },
+		]
+
+		/** 组件层样式，命名空间 .db-*，与皮肤层令牌解耦。 */
+		const COMPONENT_CSS = `
+		.db-mark{display:block;flex:none;border-radius:32%;user-select:none;-webkit-user-drag:none}
+		.db-brand{display:inline-flex;align-items:center;gap:8px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:.02em;font-weight:600}
+		.db-hero-mark{display:block;border-radius:34%;box-shadow:0 6px 18px rgba(0,87,255,.22)}
+		.db-quick{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;width:100%;padding:2px 0 0;box-sizing:border-box}
+		.db-chip{appearance:none;display:inline-flex;align-items:center;gap:6px;min-height:32px;padding:0 14px;border:1px solid var(--dsw-alias-border-l2,rgba(0,0,0,.12));border-radius:9999px;background:var(--dsw-alias-bg-layer-1,#fff);color:var(--dsw-alias-label-secondary,rgba(0,0,0,.85));font:inherit;font-size:13px;line-height:20px;cursor:pointer;transition:background-color var(--db-dur,.15s) var(--db-ease-out,cubic-bezier(0,0,.2,1)),border-color var(--db-dur,.15s) var(--db-ease-out,cubic-bezier(0,0,.2,1)),color var(--db-dur,.15s) var(--db-ease-out,cubic-bezier(0,0,.2,1)),transform var(--db-dur,.15s) var(--db-ease-out,cubic-bezier(0,0,.2,1))}
+		.db-chip:hover{border-color:var(--db-primary-border,#0066ff66);color:var(--db-primary,#0057ff);background:var(--db-primary-soft,#0066ff0f);transform:translateY(-1px)}
+		.db-chip:active{transform:translateY(0)}
+		.db-chip:focus-visible{outline:2px solid var(--dsw-focus-ring-color,#0057ff);outline-offset:2px}
+		.db-chip svg{width:14px;height:14px;flex:none}
+		.db-about{max-width:760px;display:flex;flex-direction:column;gap:18px;color:var(--dsw-alias-label-primary,#000);font:14px/1.6 var(--dsw-font-family,system-ui)}
+		.db-about h2{margin:0;font-size:20px;font-weight:600;line-height:28px}
+		.db-about h3{margin:0 0 6px;font-size:15px;font-weight:600}
+		.db-about p{margin:0;color:var(--dsw-alias-label-secondary,rgba(0,0,0,.85))}
+		.db-about-card{border:1px solid var(--dsw-alias-border-l2,rgba(0,0,0,.12));border-radius:var(--dsw-radius-lg,16px);padding:16px;background:var(--dsw-alias-bg-layer-1,#fff);display:flex;flex-direction:column;gap:8px}
+		.db-about-head{display:flex;align-items:center;gap:12px}
+		.db-about-head img{width:40px;height:40px;border-radius:32%;flex:none}
+		.db-about-badge{display:inline-flex;align-items:center;padding:2px 9px;border-radius:9999px;font-size:12px;line-height:18px;background:var(--db-primary-soft,#0066ff0f);color:var(--db-primary,#0057ff);border:1px solid var(--db-primary-border,#0066ff66)}
+		.db-about-tip{margin:0;font-size:12.5px;color:var(--dsw-alias-label-tertiary,rgba(0,0,0,.5))}
+		.db-about a{color:var(--db-primary,#0057ff);text-decoration:none}
+		.db-about a:hover{text-decoration:underline}
+		@media (prefers-reduced-motion: reduce){.db-chip{transition:none}}
+		`.trim()
+
+		/** 幂等安装组件层样式（与皮肤层同一约定，便于 HMR 回收）。 */
+		function installComponentStyles(doc) {
+		  if (typeof doc === 'undefined' || doc === null || doc.head == null) return () => {}
+		  const id = 'dsh-doubao-ui/components.css'
+		  let tag = doc.querySelector(`style[data-plugin-css="${id}"]`)
+		  if (tag === null) {
+		    tag = doc.createElement('style')
+		    tag.dataset.plugin = PLUGIN_ID
+		    tag.dataset.pluginCss = id
+		    doc.head.appendChild(tag)
+		  }
+		  tag.textContent = COMPONENT_CSS
+		  return () => {
+		    try { tag?.remove() } catch { /* ignore */ }
+		  }
+		}
+
+		/** 侧栏方形标记。props.size 由宿主传入（实测 24）。 */
+		function BrandMark(props) {
+		  const size = props && typeof props.size === 'number' ? props.size : 24
+		  const src = markDataUrl()
+		  return jsx('img', {
+		    'data-doubao-mark': '',
+		    className: 'db-mark',
+		    src,
+		    alt: '',
+		    'aria-hidden': 'true',
+		    draggable: false,
+		    style: { width: `${size}px`, height: `${size}px` },
+		  })
+		}
+
+		/** 侧栏名称。 */
+		function BrandName() {
+		  return jsx('span', { 'data-doubao-name': '', className: 'db-brand' }, '豆包')
+		}
+
+		/** 首页大号标记。props.size / props.className 由宿主传入（实测 34）。 */
+		function HeroMark(props) {
+		  const size = props && typeof props.size === 'number' ? props.size : 34
+		  const cls = props && typeof props.className === 'string' ? props.className : ''
+		  return jsx('img', {
+		    'data-doubao-hero-mark': '',
+		    className: `db-hero-mark ${cls}`.trim(),
+		    src: markDataUrl(),
+		    alt: '',
+		    'aria-hidden': 'true',
+		    draggable: false,
+		    style: { width: `${size}px`, height: `${size}px` },
+		  })
+		}
+
+		/** 首页快捷入口胶囊：点击把预置提示词写进输入框草稿（若服务可用）。 */
+		function QuickActions(props) {
+		  const onPick = (action) => {
+		    try {
+		      const draft = props && props.setDraft
+		      if (typeof draft === 'function') {
+		        draft(action.prompt)
+		        return
+		      }
+		      // 退化：尝试通过宿主公开的 conversation 服务写草稿
+		      const ctx = props && props.ctx
+		      const binding = ctx?.sessions?.binding?.(ctx?.currentSessionId)
+		      if (binding?.ctx) ctx.get?.('conversation')?.input?.for?.(binding.ctx)?.setDraft?.(action.prompt)
+		    } catch {
+		      /* 写不进草稿时不报错：胶囊至少不破坏页面 */
+		    }
+		  }
+		  return jsxs('div', {
+		    className: 'db-quick',
+		    'data-doubao-quick': '',
+		    role: 'group',
+		    'aria-label': '快捷入口',
+		    children: QUICK_ACTIONS.map((action) =>
+		      jsx('button', {
+		        key: action.id,
+		        type: 'button',
+		        className: 'db-chip',
+		        'data-doubao-chip': action.id,
+		        onClick: () => onPick(action),
+		        children: action.label,
+		      }),
+		    ),
+		  })
+		}
+
+		/** 「关于」设置页：说明来源、权限边界与回滚方式。 */
+		function AboutSection() {
+		  return jsxs('div', {
+		    className: 'db-about',
+		    children: [
+		      jsxs('div', { className: 'db-about-head', children: [
+		        jsx('img', { src: markDataUrl(), alt: '', 'aria-hidden': 'true' }),
+		        jsxs('div', { children: [
+		          jsx('h2', { children: '豆包风格皮肤' }),
+		          jsx('span', { className: 'db-about-badge', children: 'dsh-doubao-ui · v1.1.0' }),
+		        ] }),
+		      ] }),
+		      jsxs('div', { className: 'db-about-card', children: [
+		        jsx('h3', { children: '这是什么' }),
+		        jsx('p', { children: '给 DeepSeek Harness Web 换一套豆包风格界面：实测色板驱动的蓝调主题、暖中性面与大圆角几何，外加品牌图标与首页快捷入口。明暗双主题跟随宿主设置。' }),
+		      ] }),
+		      jsxs('div', { className: 'db-about-card', children: [
+		        jsx('h3', { children: '能力边界' }),
+		        jsx('p', { children: '本插件只写一张样式表并注册几个界面插槽：不读写文件、不发起网络请求、不注册工具或服务、不写会话记录。停用或卸载后官方界面完整恢复。' }),
+		      ] }),
+		      jsxs('div', { className: 'db-about-card', children: [
+		        jsx('h3', { children: '来源与声明' }),
+		        jsx('p', { children: '配色与几何参照豆包 Web 公开 CSS 的实测设计令牌，按 DSH 语义重新映射；图标为本项目原创绘制，未复制任何豆包素材。这是个人维护的非官方插件，与字节跳动 / 豆包、DeepSeek 无隶属或背书关系。' }),
+		        jsx('p', { className: 'db-about-tip', children: '完整令牌映射与逐项「实测 / 推导」标注见仓库 docs/DESIGN.md。' }),
+		      ] }),
+		    ],
+		  })
+		}
+
+		/**
+		 * 声明式注册所有插槽。
+		 *
+		 * 每个注册都独立 try/catch：某个插槽在当前宿主版本不存在、或已被别的插件
+		 * 声明（slot already declared），就跳过它，其余照常工作。
+		 * 用 generator 形式（yield）是官方与社区都验证过的「一次注入多个注册」写法。
+		 */
+		function registerSlots(ctx) {
+		  const slots = ctx && ctx.slots
+		  if (!slots || typeof slots.inject !== 'function' || typeof slots.register !== 'function') return
+
+		  // 1. 侧栏品牌：盖掉官方 brand-official（priority -1）
+		  try {
+		    slots.inject('sidebar.brand.mark', () =>
+		      slots.inject('sidebar.brand.name', function* () {
+		        try { yield slots.register({ name: 'sidebar.brand.mark', priority: -1 }, BrandMark) } catch { /* slot taken */ }
+		        try { yield slots.register({ name: 'sidebar.brand.name', priority: -1 }, BrandName) } catch { /* slot taken */ }
+		      }),
+		    )
+		  } catch { /* 宿主无此插槽 */ }
+
+		  // 2. 首页 hero 标记
+		  try {
+		    slots.inject('conversation.hero.brand.mark', () =>
+		      slots.register({ name: 'conversation.hero.brand.mark', priority: -1 }, HeroMark),
+		    )
+		  } catch { /* 宿主无此插槽 */ }
+
+		  // 3. 首页快捷胶囊（挂 options 列表插槽；若声明冲突则跳过）
+		  try {
+		    slots.inject('conversation.hero.options', () =>
+		      slots.register({ name: 'conversation.hero.options', id: 'doubao-quick-actions', order: 80 }, QuickActions),
+		    )
+		  } catch { /* 宿主无此插槽 */ }
+
+		  // 4. 设置页「关于」
+		  try {
+		    slots.inject('settings.section', () =>
+		      slots.register({
+		        name: 'settings.section',
+		        id: 'doubao-ui',
+		        order: 900,
+		        label: () => '豆包皮肤',
+		      }, AboutSection),
+		    )
+		  } catch { /* 宿主无此插槽 */ }
+		}
+
+
+		return { bindReact, installComponentStyles, registerSlots, BrandMark, BrandName, HeroMark, QuickActions, AboutSection, QUICK_ACTIONS, COMPONENT_CSS, NS };
+		})();
+
 		/**
 		 * dsh-doubao-ui — 豆包风格皮肤 · 浏览器半（源码）
 		 *
 		 * 构建产物是 client/client.js：一个由 window.__ModuleLoader__.load 注册的
-		 * 工厂式 CJS 模块（与官方 ui-* 包、以及 dsh-zcode-ui 等第三方皮肤完全同一套
-		 * 机制）。构建脚本 scripts/build.mjs 把本文件与 src/tokens.mjs 内联打包，
-		 * 因此本包**没有运行时依赖、没有构建期框架依赖、不需要 pnpm install**。
+		 * 工厂式 CJS 模块（与官方 ui-* 包、dsh-zcode-ui 等第三方皮肤完全同一套机制）。
+		 * 构建脚本 scripts/build.mjs 把 src/*.mjs 全部内联打包，因此本包**没有运行时
+		 * 依赖、没有构建期框架依赖、不需要 pnpm install**。
+		 *
+		 * 两层贡献：
+		 *   - 皮肤层（tokens.mjs）：纯 CSS 变量覆盖，换全站配色与几何。始终生效。
+		 *   - 组件层（components.mjs）：React 插槽注册，换品牌图标、首页快捷入口、
+		 *     设置页关于入口。宿主无 React / 无插槽时整体安全降级，皮肤层不受影响。
 		 *
 		 * 设计原则（刻意保守，避免把宿主带崩）：
-		 *   1. 皮肤只做「CSS 变量覆盖 + 少量与类名无关的结构规则」，不替换任何
-		 *      React 组件、不注册工具、不碰会话数据、不发起网络请求。
+		 *   1. 不替换宿主业务组件、不注册工具、不碰会话数据、不发起网络请求。
 		 *   2. 所有平台能力探测与样式注入都包在 try 里；任何一步失败都退化成
-		 *      一个「隐形的哑模块」——绝不让 loader 的 entry 工厂抛异常
-		 *      （loader 不隔离工厂：一个工厂抛异常会聚合成 "entries did not
-		 *      activate"，把整个 Web 壳带崩，这是社区插件最常见的白屏原因）。
+		 *      「隐形的哑模块」——绝不让 loader 的 entry 工厂抛异常（loader 不隔离
+		 *      工厂：一个工厂抛异常会聚合成 "entries did not activate"，把整个 Web
+		 *      壳带崩，这是社区插件最常见的白屏原因）。
 		 *   3. 不依赖宿主的 CSS Module 哈希类名。所有选择器走 :root / body /
 		 *      data-* 稳定锚点；找不到锚点时什么都不发生，皮肤其余部分不受影响。
 		 *   4. 样式标签带 data-plugin / data-plugin-css，遵循 DSH 客户端插件约定，
 		 *      让 HMR 驱动与卸载流程能正确回收它。
 		 */
 
+		const tokens = __MOD_TOKENS__
 		const {
 		  SKIN_VERSION,
 		  SKIN_ATTRIBUTE,
 		  STYLE_TAG_ID,
 		  renderSkinCss,
-		} = __TOKENS__
+		} = tokens
 
 		const PLUGIN_ID = 'dsh-doubao-ui'
+
+		/**
+		 * 安全获取 React 组件层。
+		 *
+		 * require('react') / require('react/jsx-runtime') 是 DSH 客户端模块系统的
+		 * **平台种子模块**（无需在 dsh.client.external 声明），但宿主版本差异或加载
+		 * 顺序异常时仍可能抛错。这里把整个组件层的加载包在 try 里：拿不到就返回
+		 * null，插件自动退化为「纯 CSS 皮肤」，绝不白屏。
+		 */
+		function probeComponents(requireFn) {
+		  try {
+		    // 注意：这里必须写 __MOD_COMPONENTS__，构建器会把这个字面
+		    // 调用内联成 __MOD_COMPONENTS__（见 scripts/build.mjs）。
+		    // 组件模块顶层不再 require react，因此这一行在任何宿主下都安全。
+		    const components = __MOD_COMPONENTS__
+		    if (!components || typeof components.bindReact !== 'function') return null
+		    // 绑定失败（React 种子缺失）→ 整体降级为纯 CSS 皮肤。
+		    if (!components.bindReact(requireFn)) return null
+		    return components
+		  } catch {
+		    return null
+		  }
+		}
 
 		/**
 		 * 安装皮肤样式表。
 		 *
 		 * 幂等：同名标签已存在时只替换内容，不重复插入。
 		 * 返回卸载函数，供 ctx.effect 在插件停用时回收（同时还原 <html> 标记）。
-		 *
-		 * @param {Document} doc
-		 * @returns {() => void}
 		 */
 		function installSkin(doc) {
 		  if (typeof doc === 'undefined' || doc === null || doc.head == null) return () => {}
@@ -779,7 +1107,7 @@ window.__ModuleLoader__.load({
 		 * 在宿主侧栏/会话区打上 `data-doubao-*` 标记，供样式表作为稳定锚点。
 		 *
 		 * 为什么需要：DSH 的组件类名是 CSS Module 内容哈希（形如 `._8HJdBW_group`），
-		 * 上游每次构建都会变。已有的 dsh-theme-doubao 插件也采用了同一策略：
+		 * 上游每次构建都会变。社区 dsh-theme-doubao 也采用同一策略：
 		 * 「主题只能用 data-* 属性选择器，不能依赖宿主类名」。
 		 *
 		 * 这里用 MutationObserver 只做「加属性」这一件事，且带短路与节流，
@@ -789,8 +1117,6 @@ window.__ModuleLoader__.load({
 		function markHostSurfaces(doc) {
 		  if (typeof doc === 'undefined' || doc === null || doc.body == null) return () => {}
 
-		  // 这些属性是宿主公开的、跨构建稳定的锚点；我们只是给它们再加一层别名，
-		  // 以便样式表用统一前缀书写，也便于用户在 DevTools 里排查。
 		  const ALIASES = [
 		    ['[data-conversation-scroll]', 'data-doubao-conversation'],
 		    ['[data-composer-card]', 'data-doubao-composer'],
@@ -830,26 +1156,29 @@ window.__ModuleLoader__.load({
 		  }
 
 		  return () => {
-		    try {
-		      observer?.disconnect()
-		    } catch {
-		      /* ignore */
-		    }
+		    try { observer?.disconnect() } catch { /* ignore */ }
 		  }
 		}
 
-		/** 必需服务：无。皮肤不依赖任何宿主 service，因此 inject 为空数组。 */
-		const inject = []
+		/**
+		 * 客户端服务注入声明。
+		 *
+		 * `slots` 是唯一硬依赖：组件层的品牌/首页/设置页注册都需要它。
+		 * 但注意 —— 即使宿主没有 slots 服务，`apply` 也会安全跳过组件层，
+		 * CSS 皮肤照常工作。声明它只是让 Loader 在 slots 就绪后再激活本插件，
+		 * 避免「插件先激活、插槽后声明」导致注册丢失（声明感知注入同理）。
+		 */
+		const inject = ['slots']
 
 		/**
 		 * 插件接线。
 		 *
 		 * ctx.effect(fn, label) 是 DSH 客户端 Loader 的标准生命周期注册：fn 的返回值
-		 * 会在插件被卸载 / 热替换时调用。这里把「样式表安装」与「标记观察」都交给它
-		 * 管理，保证停用插件后官方界面能完整恢复。
+		 * 会在插件被卸载 / 热替换时调用。这里把「样式表安装」「标记观察」「组件层」
+		 * 都交给它管理，保证停用插件后官方界面能完整恢复。
 		 */
-		function apply(ctx) {
-		  let undo = []
+		function apply(ctx, requireFn) {
+		  const undo = []
 		  try {
 		    const effect = typeof ctx?.effect === 'function' ? ctx.effect.bind(ctx) : null
 		    const register = (fn, label) => {
@@ -863,27 +1192,49 @@ window.__ModuleLoader__.load({
 		      }
 		      undo.push(fn())
 		    }
-		    register(() => installSkin(globalThis.document), `${PLUGIN_ID}: skin stylesheet`)
-		    register(() => markHostSurfaces(globalThis.document), `${PLUGIN_ID}: surface markers`)
+
+		    const doc = globalThis.document
+
+		    // 第一层：纯 CSS 皮肤，永远尝试，不依赖任何服务。
+		    register(() => installSkin(doc), `${PLUGIN_ID}: skin stylesheet`)
+		    register(() => markHostSurfaces(doc), `${PLUGIN_ID}: surface markers`)
+
+		    // 第二层：React 组件。整体可选，失败只影响这一层。
+		    try {
+		      const components = typeof requireFn === 'function' ? probeComponents(requireFn) : null
+		      if (components !== null) {
+		        register(
+		          () => components.installComponentStyles(doc),
+		          `${PLUGIN_ID}: component stylesheet`,
+		        )
+		        components.registerSlots(ctx)
+		      }
+		    } catch (error) {
+		      try { console.warn(`[${PLUGIN_ID}] 组件层降级：`, error && error.message) } catch { /* ignore */ }
+		    }
 		  } catch (error) {
 		    try {
 		      console.warn(`[${PLUGIN_ID}] 皮肤初始化失败，已安全降级：`, error && error.message)
-		    } catch {
-		      /* console 不可用时彻底静默 */
-		    }
+		    } catch { /* console 不可用时彻底静默 */ }
 		    for (const dispose of undo) {
-		      try {
-		        dispose?.()
-		      } catch {
-		        /* ignore */
-		      }
+		      try { dispose?.() } catch { /* ignore */ }
 		    }
 		  }
 		}
 
-		module.exports = { apply, inject, installSkin, markHostSurfaces, PLUGIN_ID }
+		module.exports = {
+		  apply,
+		  inject,
+		  installSkin,
+		  markHostSurfaces,
+		  probeComponents,
+		  PLUGIN_ID,
+		}
 
 
+		// 客户端入口的 apply 需要工厂的 require 来安全探测 React 种子模块。
+		exports.apply = (ctx) => apply(ctx, require);
+		exports.inject = inject;
 		return module.exports;
 	}
 });
