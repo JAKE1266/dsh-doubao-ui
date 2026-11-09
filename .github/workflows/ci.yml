@@ -30,5 +30,17 @@ jobs:
       - name: Verify
         run: node test/run-all.mjs
 
+      # Generic manifest check: reads the package's own name from
+      # package.json instead of hard-coding it, so copying this workflow to a
+      # sibling plugin cannot silently assert the wrong package.
       - name: Manifest sanity
-        run: node -e "const p=require('./package.json'); if(p.name!=='dsh-doubao-ui') throw new Error('bad name'); if(p.dsh.client.platform!=='web') throw new Error('bad platform'); console.log('manifest ok:', p.name, p.version)"
+        run: |
+          node -e "
+          const p = require('./package.json');
+          const dir = process.cwd().split(/[\\\\/]/).pop();
+          if (p.name !== dir) throw new Error('package name ' + p.name + ' does not match directory ' + dir);
+          if (p.dsh.client.platform !== 'web') throw new Error('bad platform');
+          if (!p.dsh.client.inject.includes('@deepseek-ai/dsh-client-ui-theme')) throw new Error('missing ui-theme inject');
+          if (!p.dsh.bundle || !p.dsh.bundle.patch) throw new Error('missing dsh.bundle.patch');
+          console.log('manifest ok:', p.name, p.version);
+          "
