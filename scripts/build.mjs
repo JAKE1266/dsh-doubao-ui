@@ -90,9 +90,43 @@ for (const mod of MODULES) {
 const mainSrc = readFileSync(join(root, 'src', 'client.mjs'), 'utf8')
 const mainBody = rewriteRequires(mainSrc, 'client.mjs')
 
+/** 主模块导出名（同时识别 `export const/function` 与 `export { a, b }`）。 */
+const mainExports = (() => {
+  const names = []
+  mainBody.replace(
+    /^export\s+(const|let|var|function|async function)\s+([A-Za-z_$][\w$]*)/gm,
+    (_m, _kind, name) => { names.push(name); return _m },
+  )
+  mainBody.replace(/^export\s*\{([^}]*)\}\s*;?\s*$/gm, (_m, list) => {
+    for (const part of list.split(',')) {
+      const name = part.trim().split(/\s+as\s+/)[0].trim()
+      if (name) names.push(name)
+    }
+    return _m
+  })
+  return [...new Set(names)]
+})()
+
+if (!mainExports.includes('createApply')) {
+  throw new Error('build: client.mjs 必须导出 createApply(requireFn)，否则组件层拿不到 require')
+}
+if (!mainExports.includes('inject')) {
+  throw new Error('build: client.mjs 必须导出 inject（客户端服务注入声明）')
+}
+if (/^module\.exports\s*=/m.test(mainBody)) {
+  throw new Error(
+    'build: client.mjs 不得使用 module.exports = {...} —— 它会让 exports 别名失效，' +
+    '导致后续 exports.* 赋值被静默丢弃。请用 export 语法。',
+  )
+}
+
+const mainStripped = mainBody
+  .replace(/^export\s+(const|let|var|function|async function)\s+/gm, '$1 ')
+  .replace(/^export\s*\{[^}]*\}\s*;?\s*$/gm, '')
+
 /** 把 ESM 源码包装成一个返回 exports 对象的 CJS 块。 */
-function wrapModule(mod, body) {
-  const names = exportNamesOf[mod.file]
+function wrapModule(mod, body, namesOverride) {
+  const names = namesOverride ?? exportNamesOf[mod.file]
   return `const ${mod.varName} = (() => {\n${body}\nreturn { ${names.join(', ')} };\n})();`
 }
 
@@ -111,11 +145,12 @@ window.__ModuleLoader__.load({
 
 ${MODULES.map((m) => indent(wrapModule(m, moduleBodies[m.file]), 2)).join('\n\n')}
 
-${indent(mainBody, 2)}
+${indent(wrapModule({ file: 'client.mjs', varName: '__MOD_CLIENT__' }, mainStripped, mainExports), 2)}
 
-\t\t// 客户端入口的 apply 需要工厂的 require 来安全探测 React 种子模块。
-\t\texports.apply = (ctx) => apply(ctx, require);
-\t\texports.inject = inject;
+\t\t// Loader 只用 apply(ctx) 一个参数调用，所以工厂的 require 必须在
+\t\t// 闭包里捕获后交给 createApply —— 否则组件层永远拿不到 React 种子模块。
+\t\tObject.assign(exports, __MOD_CLIENT__);
+\t\texports.apply = __MOD_CLIENT__.createApply(require);
 \t\treturn module.exports;
 \t}
 });

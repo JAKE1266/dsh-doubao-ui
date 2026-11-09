@@ -31,8 +31,7 @@ const ok = (name) => {
 }
 
 /** 构造一个带可控 require 的 vm 沙箱，返回工厂注册与工厂函数。 */
-function makeSandbox(options = {}) {
-  const { react = { useState: () => [] }, jsxRuntime = { jsx: () => ({}), jsxs: () => ({}) }, extraGlobals = {} } = options
+function makeSandbox(options = {}) {  const { react = { useState: () => [] }, jsxRuntime = { jsx: () => ({}), jsxs: () => ({}) }, extraGlobals = {} } = options
   let registration = null
   const seeds = { react, 'react/jsx-runtime': jsxRuntime }
   const requireFn = (spec) => {
@@ -54,6 +53,25 @@ function makeSandbox(options = {}) {
 }
 
 const clientCode = read('client/client.js')
+
+/** 最小 DOM 桩：够 installSkin / installComponentStyles 幂等与回收测试用。 */
+function makeDomStub() {
+  const head = { children: [], appendChild(n) { this.children.push(n) } }
+  const rootAttrs = new Map()
+  const doc = {
+    head,
+    body: { querySelectorAll: () => [] },
+    documentElement: {
+      getAttribute: (k) => (rootAttrs.has(k) ? rootAttrs.get(k) : null),
+      setAttribute: (k, v) => rootAttrs.set(k, v),
+      removeAttribute: (k) => rootAttrs.delete(k),
+    },
+    createElement: () => ({ dataset: {}, textContent: '', remove() { this.__removed = true } }),
+    querySelector: (sel) =>
+      head.children.find((n) => n.dataset.pluginCss === sel.match(/data-plugin-css="([^"]+)"/)?.[1]) ?? null,
+  }
+  return { doc, head, rootAttrs }
+}
 
 // ── 1. 产物语法 + 工厂注册 ────────────────────────────────────────────────
 {
@@ -90,13 +108,70 @@ const clientCode = read('client/client.js')
   assert.ok(mod.inject.includes('slots'), '组件层需要声明 slots 服务')
   assert.equal(typeof mod.installSkin, 'function')
   assert.equal(typeof mod.markHostSurfaces, 'function')
-  ok('工厂导出 apply / inject(slots) / installSkin / markHostSurfaces')
+
+  // 回归：Loader 只用 apply(ctx) 调用。若签名是 (ctx, requireFn)，
+  // 第二个参数恒为 undefined，组件层会被永久静默禁用。
+  assert.equal(mod.apply.length, 1, 'apply 必须只接受 ctx 一个参数（require 由闭包捕获）')
+  ok('工厂导出 apply(ctx) / inject(slots) / installSkin / markHostSurfaces')
+
+  // 回归：module.exports = {...} 会让 exports 别名失效，后续 exports.* 静默丢失。
+  assert.ok(
+    !/^\s*module\.exports\s*=/m.test(clientCode),
+    '产物不得出现 module.exports = {...}（会让 exports.* 赋值静默丢失）',
+  )
+  ok('产物不含 module.exports 重绑定（避免 exports 别名失效）')
+
+  // 回归：组件层必须真的被接上 —— 完整跑一次 apply，确认插槽注册发生。
+  {
+    const dom = makeDomStub()
+    // 注意：apply 读的是它自己作用域里的 globalThis.document，所以必须把
+    // document 注入**沙箱**（而不是宿主 globalThis），否则样式注入会被静默跳过。
+    let captured2 = null
+    const sb2 = {
+      window: { __ModuleLoader__: { load: (r) => { captured2 = r } } },
+      console, Symbol, Object, Array, String, Number, JSON, Math, Map, Set, Error, Promise,
+      btoa: (s) => Buffer.from(s, 'binary').toString('base64'),
+      encodeURIComponent,
+      MutationObserver: undefined,
+      requestAnimationFrame: (fn) => fn(),
+      document: dom.doc,
+    }
+    vm.createContext(sb2)
+    vm.runInContext(clientCode, sb2, { filename: 'client/client.js' })
+    const mod2 = captured2.factory((spec) => {
+      if (spec === 'react') return { useState: () => [] }
+      if (spec === 'react/jsx-runtime') return { jsx: () => ({}), jsxs: () => ({}) }
+      throw new Error(`no module: ${spec}`)
+    })
+
+    const calls = []
+    const slots = {
+      inject: (name, fn) => {
+        calls.push(['inject', name])
+        try {
+          const r = fn()
+          if (r && typeof r.next === 'function') { for (const _ of r) { /* drain */ } }
+        } catch { /* ignore */ }
+      },
+      register: (desc) => { calls.push(['register', desc.name, desc.priority ?? null]); return () => {} },
+    }
+    assert.doesNotThrow(() => mod2.apply({ effect: (fn) => { fn() }, slots }))
+
+    const registered = calls.filter((c) => c[0] === 'register').map((c) => c[1])
+    assert.ok(registered.includes('sidebar.brand.mark'), 'apply 必须真的注册品牌插槽（组件层被接上）')
+    assert.equal(dom.head.children.length, 2, '应注入 2 张样式表（皮肤 + 组件）')
+    const ids = dom.head.children.map((n) => n.dataset.pluginCss).sort()
+    assert.equal(ids.join(','), 'dsh-doubao-ui/components.css,dsh-doubao-ui/skin.css')
+    ok('apply 真实调用后组件层生效（2 张样式表 + 插槽注册）')
+  }
+
 
   // ── 3. 四个模块都被内联 ──────────────────────────────────────────────────
   assert.ok(clientCode.includes('__MOD_TOKENS__'), '缺少 tokens 模块')
   assert.ok(clientCode.includes('__MOD_ARTWORK__'), '缺少 artwork 模块')
   assert.ok(clientCode.includes('__MOD_COMPONENTS__'), '缺少 components 模块')
-  assert.ok(clientCode.includes('function apply(ctx, requireFn)'), '缺少 client 主模块')
+  assert.ok(clientCode.includes('__MOD_CLIENT__'), '缺少 client 主模块')
+  assert.ok(clientCode.includes('function createApply(requireFn)'), '缺少 createApply 工厂')
   ok('四个源码模块全部内联进单一产物')
 
   // ── 4. CSS 产物内容 ──────────────────────────────────────────────────────
@@ -160,23 +235,6 @@ const clientCode = read('client/client.js')
   ok('全部令牌名合法、值无注入风险')
 
   // ── 6. 样式注入幂等 + 卸载回收 ───────────────────────────────────────────
-  function makeDomStub() {
-    const head = { children: [], appendChild(n) { this.children.push(n) } }
-    const rootAttrs = new Map()
-    const doc = {
-      head,
-      body: { querySelectorAll: () => [] },
-      documentElement: {
-        getAttribute: (k) => (rootAttrs.has(k) ? rootAttrs.get(k) : null),
-        setAttribute: (k, v) => rootAttrs.set(k, v),
-        removeAttribute: (k) => rootAttrs.delete(k),
-      },
-      createElement: () => ({ dataset: {}, textContent: '', remove() { this.__removed = true } }),
-      querySelector: (sel) => head.children.find((n) => n.dataset.pluginCss === sel.match(/data-plugin-css="([^"]+)"/)?.[1]) ?? null,
-    }
-    return { doc, head, rootAttrs }
-  }
-
   {
     const { doc, head, rootAttrs } = makeDomStub()
     const dispose = mod.installSkin(doc)
@@ -234,6 +292,90 @@ const clientCode = read('client/client.js')
     assert.ok(comp.COMPONENT_CSS.includes('.db-chip'), '组件 CSS 缺少胶囊规则')
     assert.ok(comp.COMPONENT_CSS.includes('.db-about'), '组件 CSS 缺少关于页规则')
     ok('组件层导出完整，快捷入口文案为官方实测值')
+
+    // 回归：胶囊点击必须真的能写进输入框（此前依赖 props.setDraft，
+    // 而宿主不会传这个 prop，等于死代码）。
+    assert.equal(typeof comp.insertDraft, 'function', '必须导出 insertDraft')
+    {
+      // insertDraft 读的是它自己作用域里的 globalThis.document，因此必须在
+      // 沙箱内注入 —— 宿主 globalThis 赋值对 vm 沙箱不可见。
+      let written = null
+      let dispatched = false
+      function TA() {}
+      Object.defineProperty(TA.prototype, 'value', {
+        set(v) { written = v },
+        get() { return written },
+        configurable: true,
+      })
+      const textarea = {
+        tagName: 'TEXTAREA',
+        ownerDocument: { defaultView: { HTMLTextAreaElement: TA, Event: function Event() {} } },
+        getAttribute: () => null,
+        focus: () => {},
+        dispatchEvent: () => { dispatched = true },
+      }
+      const fakeDoc = {
+        querySelector: (sel) => (sel.includes('textarea') ? textarea : null),
+        createEvent: () => ({ initEvent() {} }),
+      }
+
+      let reg3 = null
+      const sb3 = {
+        window: { __ModuleLoader__: { load: (r) => { reg3 = r } } },
+        console, Symbol, Object, Array, String, Number, JSON, Math, Map, Set, Error, Promise,
+        btoa: (s) => Buffer.from(s, 'binary').toString('base64'),
+        encodeURIComponent,
+        MutationObserver: undefined,
+        requestAnimationFrame: (fn) => fn(),
+        document: fakeDoc,
+      }
+      vm.createContext(sb3)
+      vm.runInContext(
+        clientCode.replace(
+          'Object.assign(exports, __MOD_CLIENT__);',
+          'Object.assign(exports, __MOD_CLIENT__); exports.__C__ = __MOD_COMPONENTS__;',
+        ),
+        sb3,
+      )
+      const m3 = reg3.factory((spec) => {
+        if (spec === 'react') return {}
+        if (spec === 'react/jsx-runtime') return { jsx: () => ({}), jsxs: () => ({}) }
+        throw new Error(`no module: ${spec}`)
+      })
+      const okWrite = m3.__C__.insertDraft('测试提示词')
+      assert.equal(okWrite, true, 'insertDraft 应能找到 textarea 并写入')
+      assert.equal(written, '测试提示词', 'insertDraft 必须真的写入目标文本')
+      assert.equal(dispatched, true, 'insertDraft 必须派发 input 事件让 React 感知')
+    }
+    {
+      // 找不到输入框时必须安全返回 false，不抛异常
+      let reg4 = null
+      const sb4 = {
+        window: { __ModuleLoader__: { load: (r) => { reg4 = r } } },
+        console, Symbol, Object, Array, String, Number, JSON, Math, Map, Set, Error, Promise,
+        btoa: (s) => Buffer.from(s, 'binary').toString('base64'),
+        encodeURIComponent,
+        MutationObserver: undefined,
+        requestAnimationFrame: (fn) => fn(),
+        document: { querySelector: () => null },
+      }
+      vm.createContext(sb4)
+      vm.runInContext(
+        clientCode.replace(
+          'Object.assign(exports, __MOD_CLIENT__);',
+          'Object.assign(exports, __MOD_CLIENT__); exports.__C__ = __MOD_COMPONENTS__;',
+        ),
+        sb4,
+      )
+      const m4 = reg4.factory((spec) => {
+        if (spec === 'react') return {}
+        if (spec === 'react/jsx-runtime') return { jsx: () => ({}), jsxs: () => ({}) }
+        throw new Error(`no module: ${spec}`)
+      })
+      assert.doesNotThrow(() => m4.__C__.insertDraft('x'))
+      assert.equal(m4.__C__.insertDraft('x'), false, '无输入框时应返回 false')
+    }
+    ok('insertDraft 能写入输入框并派发 input 事件；无输入框时安全返回 false')
 
     // 插槽注册：用桩记录所有 inject/register 调用
     const calls = []

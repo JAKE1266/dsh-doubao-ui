@@ -143,23 +143,94 @@ function HeroMark(props) {
   })
 }
 
-/** 首页快捷入口胶囊：点击把预置提示词写进输入框草稿（若服务可用）。 */
-function QuickActions(props) {
-  const onPick = (action) => {
-    try {
-      const draft = props && props.setDraft
-      if (typeof draft === 'function') {
-        draft(action.prompt)
-        return
-      }
-      // 退化：尝试通过宿主公开的 conversation 服务写草稿
-      const ctx = props && props.ctx
-      const binding = ctx?.sessions?.binding?.(ctx?.currentSessionId)
-      if (binding?.ctx) ctx.get?.('conversation')?.input?.for?.(binding.ctx)?.setDraft?.(action.prompt)
-    } catch {
-      /* 写不进草稿时不报错：胶囊至少不破坏页面 */
+/**
+ * 派发 `input` 事件，让 React 的受控组件感知到值变化。
+ *
+ * 不直接用 `new Event(...)`：某些受限环境（测试桩、老 WebView、跨 realm）
+ * 里全局 `Event` 可能缺失。这里三级兜底，任何一级成功即可。
+ */
+function dispatchInput(el) {
+  try {
+    const view = el.ownerDocument?.defaultView
+    const Ctor = view?.Event ?? (typeof Event !== 'undefined' ? Event : null)
+    if (Ctor !== null && Ctor !== undefined) {
+      el.dispatchEvent(new Ctor('input', { bubbles: true }))
+      return
     }
+  } catch { /* 落到下一级 */ }
+  try {
+    const ev = el.ownerDocument.createEvent('Event')
+    ev.initEvent('input', true, false)
+    el.dispatchEvent(ev)
+  } catch { /* 事件发不出就算了，值已经写进去了 */ }
+}
+
+/**
+ * 首页快捷入口胶囊。
+ *
+ * 点击行为：把预置提示词写进当前输入框。
+ *
+ * 为什么不用 `props.setDraft`：宿主不会给 `conversation.hero.options` 的注册
+ * 传这个 prop（该插槽只传空对象），所以那条路径是死代码。这里改用宿主公开的
+ * 稳定锚点 `[data-composer-input]`（已在本机 app.asar 字符串扫描中确认存在）
+ * 找到真实的输入元素，用原生 setter 写值并派发 input 事件 —— 这样 React 的
+ * 受控组件也能感知到变化。
+ *
+ * 找不到输入框时什么都不做（胶囊仍可点击，只是不写入），绝不抛异常。
+ */
+function insertDraft(text) {
+  try {
+    const doc = globalThis.document
+    if (doc === null || doc === undefined) return false
+    const candidates = [
+      '[data-composer-input] textarea',
+      '[data-composer-input] [contenteditable="true"]',
+      '[data-composer-card] textarea',
+      '[data-composer-card] [contenteditable="true"]',
+      '[data-input] textarea',
+      'textarea[data-input]',
+    ]
+    let el = null
+    for (const selector of candidates) {
+      el = doc.querySelector(selector)
+      if (el !== null) break
+    }
+    if (el === null) return false
+
+    const isEditable = el.getAttribute('contenteditable') === 'true'
+    if (isEditable) {
+      el.focus?.()
+      el.textContent = text
+      dispatchInput(el)
+      return true
+    }
+
+    // textarea / input：走原型上的原生 setter，绕过 React 的值追踪。
+    // 用 tagName 判断而不是 instanceof —— 后者在跨 realm（iframe / 测试桩）
+    // 场景下会误判。
+    const tag = String(el.tagName ?? '').toUpperCase()
+    const view = el.ownerDocument?.defaultView
+    const Ctor = tag === 'TEXTAREA'
+      ? view?.HTMLTextAreaElement
+      : view?.HTMLInputElement
+    let setter
+    try {
+      setter = Ctor ? Object.getOwnPropertyDescriptor(Ctor.prototype, 'value')?.set : undefined
+    } catch {
+      setter = undefined
+    }
+    el.focus?.()
+    if (typeof setter === 'function') setter.call(el, text)
+    else el.value = text
+    dispatchInput(el)
+    return true
+  } catch {
+    return false
   }
+}
+
+/** 首页快捷入口胶囊：点击把预置提示词写进输入框。 */
+function QuickActions() {
   return jsxs('div', {
     className: 'db-quick',
     'data-doubao-quick': '',
@@ -171,7 +242,7 @@ function QuickActions(props) {
         type: 'button',
         className: 'db-chip',
         'data-doubao-chip': action.id,
-        onClick: () => onPick(action),
+        onClick: () => { insertDraft(action.prompt) },
         children: action.label,
       }),
     ),
@@ -259,6 +330,7 @@ export {
   bindReact,
   installComponentStyles,
   registerSlots,
+  insertDraft,
   BrandMark,
   BrandName,
   HeroMark,

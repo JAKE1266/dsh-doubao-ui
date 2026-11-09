@@ -11,6 +11,17 @@
  *   - 组件层（components.mjs）：React 插槽注册，换品牌图标、首页快捷入口、
  *     设置页关于入口。宿主无 React / 无插槽时整体安全降级，皮肤层不受影响。
  *
+ * ── 导出契约（v1.1.1 修正）──────────────────────────────────────────────
+ * 本文件**不使用** `module.exports = {...}`。原因：`module.exports = x` 会让
+ * `module.exports` 指向新对象，而工厂开头 `var exports = module.exports` 拿到的
+ * 是**旧对象**；后续任何 `exports.foo = ...` 都写在废弃对象上，静默丢失。
+ * 构建器对主模块做 IIFE 包装并 `return { ... }`，导出因此天然正确。
+ *
+ * ── require 的传递 ────────────────────────────────────────────────────
+ * `apply` 需要工厂的 `require` 来探测 React 种子模块。ESM 源码里没有 `require`
+ * 这个自由变量，所以由构建器在工厂作用域内注入一个 `__entryRequire` 绑定，
+ * 再由 `createApply()` 把它交给我们（见 scripts/build.mjs）。
+ *
  * 设计原则（刻意保守，避免把宿主带崩）：
  *   1. 不替换宿主业务组件、不注册工具、不碰会话数据、不发起网络请求。
  *   2. 所有平台能力探测与样式注入都包在 try 里；任何一步失败都退化成
@@ -23,29 +34,29 @@
  *      让 HMR 驱动与卸载流程能正确回收它。
  */
 
-const tokens = require('./tokens.mjs')
 const {
   SKIN_VERSION,
   SKIN_ATTRIBUTE,
   STYLE_TAG_ID,
   renderSkinCss,
-} = tokens
+} = require('./tokens.mjs')
 
 const PLUGIN_ID = 'dsh-doubao-ui'
 
 /**
  * 安全获取 React 组件层。
  *
- * require('react') / require('react/jsx-runtime') 是 DSH 客户端模块系统的
+ * `require('react')` / `require('react/jsx-runtime')` 是 DSH 客户端模块系统的
  * **平台种子模块**（无需在 dsh.client.external 声明），但宿主版本差异或加载
  * 顺序异常时仍可能抛错。这里把整个组件层的加载包在 try 里：拿不到就返回
  * null，插件自动退化为「纯 CSS 皮肤」，绝不白屏。
+ *
+ * @param {((spec: string) => unknown) | undefined} requireFn 工厂的 require。
+ * @returns {object | null} 组件模块，或 null（降级）。
  */
 function probeComponents(requireFn) {
+  if (typeof requireFn !== 'function') return null
   try {
-    // 注意：这里必须写 require('./components.mjs')，构建器会把这个字面
-    // 调用内联成 __MOD_COMPONENTS__（见 scripts/build.mjs）。
-    // 组件模块顶层不再 require react，因此这一行在任何宿主下都安全。
     const components = require('./components.mjs')
     if (!components || typeof components.bindReact !== 'function') return null
     // 绑定失败（React 种子缺失）→ 整体降级为纯 CSS 皮肤。
@@ -156,59 +167,63 @@ function markHostSurfaces(doc) {
 const inject = ['slots']
 
 /**
- * 插件接线。
+ * 构造真正的 `apply(ctx)`。
  *
- * ctx.effect(fn, label) 是 DSH 客户端 Loader 的标准生命周期注册：fn 的返回值
- * 会在插件被卸载 / 热替换时调用。这里把「样式表安装」「标记观察」「组件层」
- * 都交给它管理，保证停用插件后官方界面能完整恢复。
+ * 为什么不直接导出 `apply(ctx, requireFn)`：Loader 只会用 `apply(ctx)` 调用，
+ * 第二个参数恒为 undefined，组件层会被永久静默禁用。因此必须把工厂的 require
+ * 在**闭包**里捕获，导出签名严格为 1 参。
+ *
+ * @param {((spec: string) => unknown) | undefined} requireFn 工厂的 require。
+ * @returns {(ctx: object) => void} Loader 可调用的 apply。
  */
-function apply(ctx, requireFn) {
-  const undo = []
-  try {
-    const effect = typeof ctx?.effect === 'function' ? ctx.effect.bind(ctx) : null
-    const register = (fn, label) => {
-      if (effect !== null) {
-        try {
-          effect(fn, label)
-          return
-        } catch {
-          /* 某些宿主版本 effect 签名不同，退回直接调用 */
-        }
-      }
-      undo.push(fn())
-    }
-
-    const doc = globalThis.document
-
-    // 第一层：纯 CSS 皮肤，永远尝试，不依赖任何服务。
-    register(() => installSkin(doc), `${PLUGIN_ID}: skin stylesheet`)
-    register(() => markHostSurfaces(doc), `${PLUGIN_ID}: surface markers`)
-
-    // 第二层：React 组件。整体可选，失败只影响这一层。
+export function createApply(requireFn) {
+  return function apply(ctx) {
+    const undo = []
     try {
-      const components = typeof requireFn === 'function' ? probeComponents(requireFn) : null
-      if (components !== null) {
-        register(
-          () => components.installComponentStyles(doc),
-          `${PLUGIN_ID}: component stylesheet`,
-        )
-        components.registerSlots(ctx)
+      const effect = typeof ctx?.effect === 'function' ? ctx.effect.bind(ctx) : null
+      const register = (fn, label) => {
+        if (effect !== null) {
+          try {
+            effect(fn, label)
+            return
+          } catch {
+            /* 某些宿主版本 effect 签名不同，退回直接调用 */
+          }
+        }
+        undo.push(fn())
+      }
+
+      const doc = globalThis.document
+
+      // 第一层：纯 CSS 皮肤，永远尝试，不依赖任何服务。
+      register(() => installSkin(doc), `${PLUGIN_ID}: skin stylesheet`)
+      register(() => markHostSurfaces(doc), `${PLUGIN_ID}: surface markers`)
+
+      // 第二层：React 组件。整体可选，失败只影响这一层。
+      try {
+        const components = probeComponents(requireFn)
+        if (components !== null) {
+          register(
+            () => components.installComponentStyles(doc),
+            `${PLUGIN_ID}: component stylesheet`,
+          )
+          components.registerSlots(ctx)
+        }
+      } catch (error) {
+        try { console.warn(`[${PLUGIN_ID}] 组件层降级：`, error && error.message) } catch { /* ignore */ }
       }
     } catch (error) {
-      try { console.warn(`[${PLUGIN_ID}] 组件层降级：`, error && error.message) } catch { /* ignore */ }
-    }
-  } catch (error) {
-    try {
-      console.warn(`[${PLUGIN_ID}] 皮肤初始化失败，已安全降级：`, error && error.message)
-    } catch { /* console 不可用时彻底静默 */ }
-    for (const dispose of undo) {
-      try { dispose?.() } catch { /* ignore */ }
+      try {
+        console.warn(`[${PLUGIN_ID}] 皮肤初始化失败，已安全降级：`, error && error.message)
+      } catch { /* console 不可用时彻底静默 */ }
+      for (const dispose of undo) {
+        try { dispose?.() } catch { /* ignore */ }
+      }
     }
   }
 }
 
-module.exports = {
-  apply,
+export {
   inject,
   installSkin,
   markHostSurfaces,
